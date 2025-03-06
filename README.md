@@ -1,4 +1,4 @@
-# SpringBoot+Layui后台管理系统
+# SpringBoot+Layui+工作流后台管理系统
 ## 后端：
 SpringBoot  2.1.0  
 tk.mybatis  2.0.2  
@@ -10,3 +10,6 @@ JQuery  3.3.1
 
 ## 渲染模板
 Thymeleaf
+
+##工作流js
+jsPlumb
