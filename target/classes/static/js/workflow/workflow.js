@@ -1,0 +1,174 @@
+$(document).ready(function(){
+    var canvasElement = $("#diagramCanvas")[0];
+
+    var instance = jsPlumb.getInstance({
+        container: canvasElement,  // 指定容器
+        Endpoint: ["Dot", { radius: 5 }],
+        Connector: "Straight",
+        Anchors: ["Top", "Bottom"],
+        PaintStyle: { stroke: "#5c96bc", strokeWidth: 2 },
+        EndpointStyle: { fill: "#5c96bc" },
+        ConnectionOverlays: [
+            ["Arrow", { width: 10, length: 10, location: 1, foldback: 0.8 }]
+        ]
+    });
+
+    // 加载物料数据
+    $.getJSON("/workflow/materials", function(data) {
+        var html = "";
+        $.each(data, function(i, item) {
+            html += '<div class="draggable material-item" data-id="'+item.id+'" data-name="'+item.name+'">'+item.name+'</div>';
+        });
+        $("#materialArea").append(html);
+        initDraggable();
+    });
+
+    // 加载工艺数据
+    $.getJSON("/workflow/crafts", function(data) {
+        var html = "";
+        $.each(data, function(i, item) {
+            html += '<div class="draggable craft-item" data-id="'+item.id+'" data-name="'+item.name+'">'+item.name+'</div>';
+        });
+        $("#craftArea").append(html);
+        initDraggable();
+    });
+
+    // 初始化外部拖拽（从物料或工艺区域拖动时）时，加入 grid 配置
+    function initDraggable(){
+        $(".draggable").draggable({
+            helper: "clone",
+            revert: "invalid",
+            grid: [10,10]
+        });
+    }
+
+    // 使流程图画布支持拖拽放置
+    $("#diagramCanvas").droppable({
+        accept: ".draggable",
+        drop: function(event, ui){
+            var offset = $(this).offset();
+            var posX = ui.offset.left - offset.left;
+            var posY = ui.offset.top - offset.top;
+
+            // 网格对齐：假设网格大小为 10px
+            var gridSize = 5;
+            posX = Math.round(posX / gridSize) * gridSize;
+            posY = Math.round(posY / gridSize) * gridSize;
+
+            var nodeType = ui.helper.hasClass("material-item") ? "material" : "craft";
+            var nodeId = nodeType.charAt(0) + ui.helper.data("id");
+            var nodeName = ui.helper.data("name");
+
+            var nodeDiv = $('<div class="node" id="'+nodeId+'" data-type="'+nodeType+'" data-id="'+nodeId+'" data-name="'+nodeName+'"></div>');
+            nodeDiv.css({
+                position: "absolute",
+                top: posY,
+                left: posX
+            });
+
+            if (nodeType === "material") {
+                // 物料节点：矩形，默认下方显示“比例：？”
+                var materialHtml = '<div class="material-content" style="text-align:center;">' + nodeName + '</div>' +
+                    '<div class="material-ratio" style="text-align:center; font-size:12px;">比例：？</div>';
+                nodeDiv.html(materialHtml);
+            } else {
+                // 工艺节点：圆形，尺寸为 50px
+                nodeDiv.css({
+                    "border-radius": "50%",
+                    "width": "50px",
+                    "height": "50px",
+                    "line-height": "50px",
+                    "text-align": "center",
+                    "overflow": "hidden"
+                });
+                nodeDiv.html(nodeName);
+            }
+
+            $("#diagramCanvas").append(nodeDiv);
+
+            // 使用 jsPlumb.draggable，并传入 grid 配置，确保拖拽时也按照网格移动
+            instance.draggable(nodeDiv, { grid: [5,5] });
+
+            instance.addEndpoint(nodeId, {
+                anchors: ["Right"],
+                isSource: true,
+                isTarget: true,
+                maxConnections: -1
+            });
+            instance.addEndpoint(nodeId, {
+                anchors: ["Left"],
+                isSource: true,
+                isTarget: true,
+                maxConnections: -1
+            });
+
+            // 使用 jsPlumb 的 remove 方法删除节点，避免内部状态残留
+            nodeDiv.on("contextmenu", function (e) {
+                e.preventDefault();
+                if (confirm("确定删除该节点？")) {
+                    instance.remove($(this));
+                }
+            });
+
+            // 点击物料节点：弹出输入框填写数量，并更新比例显示
+            nodeDiv.on("click", function() {
+                var type = $(this).data("type");
+                if (type === "material") {
+                    var num = prompt("请输入数字", "1");
+                    if (num !== null) {
+                        $(this).data("num", num);
+                        $(this).find(".material-ratio").html("比例：" + num);
+                    }
+                }
+            });
+
+            instance.repaintEverything();
+        }
+    });
+
+    // 点击连线时可删除
+    instance.bind("click", function (conn) {
+        if (confirm("删除这条连接？")) {
+            instance.deleteConnection(conn);
+        }
+    });
+
+    // 保存流程图数据（节点和连线信息）
+    $("#saveDiagram").click(function(){
+        var diagramData = {
+            nodes: [],
+            connections: []
+        };
+
+        $("#diagramCanvas .node").each(function(){
+            var $node = $(this);
+            var nodeData = {
+                id: $node.data("id"),
+                type: $node.data("type"),
+                name: $node.data("name")
+            };
+
+            if ($node.data("type") === "material" && $node.data("num")) {
+                nodeData.num = $node.data("num");
+            }
+            diagramData.nodes.push(nodeData);
+        });
+
+        $.each(instance.getAllConnections(), function (i, connection) {
+            diagramData.connections.push({
+                source: connection.sourceId,
+                target: connection.targetId
+            });
+        });
+
+        $.ajax({
+            url: "/workflow/processDiagram/save",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ diagramJson: JSON.stringify(diagramData) }),
+            success: function(response){
+                alert("流程图保存成功！");
+            }
+        });
+    });
+});

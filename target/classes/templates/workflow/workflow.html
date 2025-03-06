@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:include="layout :: htmlhead" th:with="title='流程图设计'"></head>
+<body class="layui-layout-body">
+<div class="layui-layout layui-layout-admin">
+    <!--头部导航-->
+    <div th:replace="fragments/head :: header"></div>
+
+    <!--主体内容-->
+    <div class="layui-body" style="margin: 1%">
+        <!-- 页面内容区域 -->
+        <div class="container">
+            <!-- 左侧物料区 -->
+            <div id="materialArea" class="area">
+                <h3>物料区</h3>
+                <!-- 物料数据通过 AJAX 动态加载 -->
+            </div>
+            <!-- 中间流程区 -->
+            <div id="processArea" class="area2">
+                <h3>流程区</h3>
+                <div id="diagramCanvas" style="width:100%; height:600px; border:1px solid #ccc; position: relative;"></div>
+                <button id="saveDiagram">保存流程图</button>
+            </div>
+            <!-- 右侧工艺区 -->
+            <div id="craftArea" class="area">
+                <h3>工艺区</h3>
+                <!-- 工艺数据通过 AJAX 动态加载 -->
+            </div>
+        </div>
+    </div>
+
+    <!--底部-->
+    <div th:replace="fragments/footer :: footer"></div>
+</div>
+
+<!-- 引入 JS 文件 -->
+<script th:src="@{/js/jquery/jquery-3.3.1.min.js}"></script>
+<script th:src="@{/layui/layui.all.js}"></script>
+<!-- 引入 jsPlumb 用于节点拖拽和连线 -->
+<script th:src="@{/js/workflow/jsplumb.min.js}"></script>
+<script th:src="@{/js/workflow/workflow.js}"></script>
+<!-- 追加 jQuery UI -->
+<script th:src="@{/js/jquery/jquery-ui.min.js}"></script>
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
+
+<style type="text/css">
+    .container {
+        display: flex;
+        justify-content: space-between;
+    }
+    .area {
+        width: 20%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        min-height: 600px;
+    }
+    .area2 {
+        width: 60%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        min-height: 600px;
+    }
+    .node {
+        cursor: move;
+        padding: 5px;
+        border: 1px solid #000;
+        background: #fff;
+        position: absolute;
+    }
+</style>
+</body>
+</html>
