@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<!--底部-->
+<div th:replace="fragments/footer :: footer"></div>
+<head th:include="layout :: htmlhead" th:with="title='流程图查询'">
+    <meta charset="UTF-8">
+    <title>流程图查询</title>
+    <!-- 引入必要样式 -->
+    <link th:href="@{/css/jquery-ui.css}" rel="stylesheet">
+    <link th:href="@{/css/workflow.css}" rel="stylesheet">
+</head>
+<body class="layui-layout-body">
+<div class="layui-layout layui-layout-admin">
+    <!-- 头部导航 -->
+    <div th:replace="fragments/head :: header"></div>
+
+    <!-- 主体内容 -->
+    <div class="layui-body" style="margin:1%">
+        <div class="row">
+            <div class="col-2" id="diagramList"></div>
+            <div class="col-10">
+                <div id="diagramCanvas" style="width:100%;height:800px;border:1px solid #ccc;position:relative;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!--底部-->
+    <div th:replace="fragments/footer :: footer"></div>
+</div>
+
+<!-- 引入依赖库 -->
+<script th:src="@{/js/jquery/jquery-ui.min.js}"></script>
+<script th:src="@{/js/jquery/jquery-3.3.1.min.js}"></script>
+<script th:src="@{/js/workflow/jsplumb.min.js}"></script>
+
+<script>
+    // 初始化带样式的jsPlumb实例
+    const instance = jsPlumb.getInstance({
+        container: "diagramCanvas",
+        Endpoint: ["Dot", { radius: 5 }],
+        Connector: "Straight",
+        Anchors: ["Top", "Bottom"],
+        PaintStyle: { stroke: "#5c96bc", strokeWidth: 2 },
+        EndpointStyle: { fill: "#5c96bc" },
+        ConnectionOverlays: [
+            ["Arrow", { width: 10, length: 10, location: 1, foldback: 0.8 }]
+        ]
+    });
+
+    // 加载流程图列表
+    function loadDiagramList() {
+        $.get("/workflow/diagrams", function(diagrams) {
+            console.log(diagrams);
+            const listHtml = diagrams.map(d =>
+                `<div class="list-item" data-id="${d.id}"
+                  style="padding:5px;cursor:pointer;"
+                  onmouseover="this.style.background='#f5f5f5'"
+                  onmouseout="this.style.background='white'">
+                ${d.id}
+             </div>`
+            ).join("");
+            $("#diagramList").html(listHtml);
+
+            // 绑定点击事件
+            $(".list-item").click(function() {
+                $(".list-item").css("background", "white");
+                $(this).css("background", "#e6f3ff");
+                loadDiagram($(this).data("id"));
+            });
+        });
+    }
+
+    // 加载指定流程图
+    function loadDiagram(diagramId) {
+        $.get(`/workflow/diagrams/${diagramId}`, function(diagram) {
+            renderDiagram(diagram.diagramJson);
+        });
+    }
+
+    // 渲染流程图，根据节点类型设置不同的样式
+    function renderDiagram(data) {
+        if (typeof data === "string") {
+            data = JSON.parse(data);
+        }
+        // 重置jsPlumb实例并清空画布
+        instance.reset();
+        $("#diagramCanvas").empty();
+
+        data.nodes.forEach(node => {
+            // 创建基础节点，仅包含定位与拖拽指针
+            var nodeDiv = $('<div class="node"></div>')
+                .attr('id', node.id)
+                .data('type', node.type)
+                .data('id', node.id)
+                .data('name', node.name)
+                .css({
+                    "position": "absolute",
+                    "top": node.position.y + "px",
+                    "left": node.position.x + "px",
+                    "cursor": "move"
+                });
+
+            if (node.type === 'material') {
+                // 物料节点样式
+                nodeDiv.css({
+                    "border": "2px solid #5c96bc",      // 增加边框
+                    "background-color": "#f0f8ff",        // 背景色
+                    "padding": "8px",                     // 内边距
+                    "min-width": "100px",                 // 最小宽度
+                    "text-align": "center"                // 文字居中
+                });
+                nodeDiv.addClass('material');
+                nodeDiv.html(`
+                    <div class="material-content">${node.content.name}</div>
+                    <div class="material-ratio">${node.content.ratio}</div>
+                `);
+                if (node.num) nodeDiv.data('num', node.num);
+            } else if (node.type === 'craft') {
+                // 工艺节点样式：圆形（椭圆形）框
+                nodeDiv.css({
+                    "border-radius": "50%",          // 正圆形或椭圆形参数
+                    "width": "80px",                 // 椭圆宽度
+                    "height": "50px",                // 椭圆高度
+                    "border": "2px solid #5c96bc",    // 增加边框
+                    "display": "flex",               // 启用 Flexbox
+                    "align-items": "center",         // 垂直居中
+                    "justify-content": "center",     // 水平居中
+                    "overflow": "hidden"             // 防止溢出
+                });
+                nodeDiv.addClass('craft');
+                nodeDiv.text(node.name);
+            } else {
+                // 默认样式
+                nodeDiv.css({
+                    "border": "2px solid #5c96bc",
+                    "background-color": "#f0f8ff",
+                    "padding": "8px",
+                    "min-width": "100px",
+                    "text-align": "center"
+                });
+                nodeDiv.text(node.name);
+            }
+
+            $("#diagramCanvas").append(nodeDiv);
+            instance.draggable(nodeDiv, { grid: [5,5] });
+
+            // 添加左右端点
+            instance.addEndpoint(node.id, {
+                anchor: "Right",
+                isSource: true,
+                isTarget: true
+            });
+            instance.addEndpoint(node.id, {
+                anchor: "Left",
+                isSource: true,
+                isTarget: true
+            });
+        });
+
+        // 还原连接，同时指定连接的锚点与箭头配置
+        data.connections.forEach(conn => {
+            instance.connect({
+                source: conn.source,
+                target: conn.target,
+                anchors: conn.anchors, // 使用保存的锚点 ["Right", "Left"]
+                overlays: [
+                    ["Arrow", { width: 10, length: 10, location: 1, foldback: 0.8 }]
+                ],
+                paintStyle: { stroke: "#5c96bc", strokeWidth: 2 },
+                endpointStyle: { fill: "#5c96bc" }
+            });
+        });
+
+        instance.repaintEverything();
+    }
+
+    // 初始化加载列表
+    $(document).ready(function() {
+        loadDiagramList();
+    });
+</script>
+
+</body>
+</html>
