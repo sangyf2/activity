@@ -31,6 +31,10 @@ public class  WorkflowService {
         return materialMapper.selectAll();
     }
 
+    public List<ProcessDiagram> getAllDiagrams() {
+        return processDiagramMapper.selectAll();
+    }
+
     public List<Craft> getAllCrafts() {
         return craftMapper.selectAll();
     }

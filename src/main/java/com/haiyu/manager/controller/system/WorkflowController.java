@@ -42,4 +42,22 @@ public class WorkflowController {
         workflowService.saveProcessDiagram(diagram);
         return "success";
     }
+
+    @GetMapping("/queryWorkflow")
+    public String queryWorkflow() {
+        return "workflow/queryWorkflow"; // 返回 Thymeleaf 模板 workflow.html
+    }
+
+    @GetMapping("/diagrams")
+    @ResponseBody
+    public List<ProcessDiagram> getDiagrams() {
+        return workflowService.getAllDiagrams();
+    }
+
+    // 根据ID查询单个流程图
+    @GetMapping("/diagrams/{id}")
+    @ResponseBody
+    public ProcessDiagram getDiagramById(@PathVariable Integer id) {
+        return workflowService.getProcessDiagram(id);
+    }
 }

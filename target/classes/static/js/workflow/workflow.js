@@ -59,11 +59,17 @@ $(document).ready(function(){
             var nodeId = nodeType.charAt(0) + ui.helper.data("id");
             var nodeName = ui.helper.data("name");
 
-            var nodeDiv = $('<div class="node" id="'+nodeId+'" data-type="'+nodeType+'" data-id="'+nodeId+'" data-name="'+nodeName+'"></div>');
-            nodeDiv.css({
-                position: "absolute",
-                top: posY,
-                left: posX
+            // 物料节点样式补全
+            var nodeDiv = $('<div class="node" id="'+nodeId+'" data-type="'+nodeType+'" data-id="'+nodeId+'" data-name="'+nodeName+'"></div>').css({
+                "position": "absolute",
+                "top": posY,
+                "left": posX,
+                "border": "2px solid #5c96bc",      // 增加边框
+                "background-color": "#f0f8ff",      // 背景色
+                "padding": "8px",                   // 内边距
+                "min-width": "100px",               // 最小宽度
+                "text-align": "center",             // 文字居中
+                "cursor": "move"                    // 拖拽指针
             });
 
             if (nodeType === "material") {
@@ -74,12 +80,14 @@ $(document).ready(function(){
             } else {
                 // 工艺节点：圆形，尺寸为 50px
                 nodeDiv.css({
-                    "border-radius": "50%",
-                    "width": "50px",
-                    "height": "50px",
-                    "line-height": "50px",
-                    "text-align": "center",
-                    "overflow": "hidden"
+                    "border-radius": "50%",          // 正圆形（或调整为椭圆形参数）
+                    "width": "80px",                // 椭圆宽度
+                    "height": "50px",               // 椭圆高度
+                    "border": "2px solid #5c96bc",  // 增加边框
+                    "display": "flex",              // 启用 Flexbox
+                    "align-items": "center",        // 垂直居中
+                    "justify-content": "center",    // 水平居中
+                    "overflow": "hidden"            // 防止溢出
                 });
                 nodeDiv.html(nodeName);
             }
@@ -89,18 +97,24 @@ $(document).ready(function(){
             // 使用 jsPlumb.draggable，并传入 grid 配置，确保拖拽时也按照网格移动
             instance.draggable(nodeDiv, { grid: [5,5] });
 
-            instance.addEndpoint(nodeId, {
+            // 为右侧端点添加自定义属性
+            var epRight = instance.addEndpoint(nodeId, {
                 anchors: ["Right"],
                 isSource: true,
                 isTarget: true,
                 maxConnections: -1
             });
-            instance.addEndpoint(nodeId, {
+            $(epRight.canvas).attr("data-anchor", "Right");
+
+            // 为左侧端点添加自定义属性
+            var epLeft = instance.addEndpoint(nodeId, {
                 anchors: ["Left"],
                 isSource: true,
                 isTarget: true,
                 maxConnections: -1
             });
+            $(epLeft.canvas).attr("data-anchor", "Left");
+
 
             // 使用 jsPlumb 的 remove 方法删除节点，避免内部状态残留
             nodeDiv.on("contextmenu", function (e) {
@@ -111,13 +125,19 @@ $(document).ready(function(){
             });
 
             // 点击物料节点：弹出输入框填写数量，并更新比例显示
-            nodeDiv.on("click", function() {
+            nodeDiv.on("dblclick", function() {
                 var type = $(this).data("type");
                 if (type === "material") {
+                    // 改进后的输入处理
                     var num = prompt("请输入数字", "1");
                     if (num !== null) {
-                        $(this).data("num", num);
-                        $(this).find(".material-ratio").html("比例：" + num);
+                        num = parseFloat(num);
+                        if (!isNaN(num) && num > 0) {
+                            $(this).data("num", num);
+                            $(this).find(".material-ratio").html("比例：" + num);
+                        } else {
+                            alert("请输入有效数字！");
+                        }
                     }
                 }
             });
@@ -145,21 +165,47 @@ $(document).ready(function(){
             var nodeData = {
                 id: $node.data("id"),
                 type: $node.data("type"),
-                name: $node.data("name")
+                name: $node.data("name"),
+                // 新增样式信息
+                position: {
+                    x: parseInt($node.css("left")),
+                    y: parseInt($node.css("top"))
+                },
+                style: {
+                    width: $node.outerWidth(),
+                    height: $node.outerHeight(),
+                    borderRadius: $node.css("border-radius"),
+                    lineHeight: $node.css("line-height"),
+                    backgroundColor: $node.css("background-color")
+                }
             };
 
-            if ($node.data("type") === "material" && $node.data("num")) {
-                nodeData.num = $node.data("num");
+            if ($node.data("type") === "material") {
+                nodeData.content = {
+                    name: $node.find(".material-content").text(),
+                    ratio: $node.find(".material-ratio").text()
+                };
+                if ($node.data("num")) {
+                    nodeData.num = $node.data("num");
+                }
             }
+
             diagramData.nodes.push(nodeData);
         });
 
+        // 修改保存连接的代码
         $.each(instance.getAllConnections(), function (i, connection) {
+            // 从端点的 canvas 元素读取 data-anchor 属性
+            const sourceAnchor = $(connection.endpoints[0].canvas).attr("data-anchor");
+            const targetAnchor = $(connection.endpoints[1].canvas).attr("data-anchor");
+
             diagramData.connections.push({
                 source: connection.sourceId,
-                target: connection.targetId
+                target: connection.targetId,
+                anchors: [sourceAnchor, targetAnchor] // 保存自定义锚点信息
             });
         });
+
 
         $.ajax({
             url: "/workflow/processDiagram/save",
