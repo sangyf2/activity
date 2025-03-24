@@ -1,0 +1,13 @@
+/* CSS Document */
+@charset "utf-8";
+/**{margin:0;padding:0;}*/
+a{text-decoration:none;cursor:pointer;color:#333333;}
+a:hover{color:#3B61B7;}
+html{width:100%;height:100%;overflow-x:hidden;}
+body{color:#333333;font-family:"΢���ź�";font-size:12px;height:100%;margin:0;padding:0;overflow:auto;overflow-x:hidden;}
+
+/*welcome.jsp*/
+body#page {height:auto;border-top:80px solid transparent;border-bottom:44px solid transparent;background:url("") repeat #fff;}
+#welcome{top:55%; left:55%;position:absolute;margin:-120px 0 0 -319px;}
+body#index {height:100%;margin:0;padding:0;overflow:auto;overflow-x:hidden;background-position:center center}
+body tr td {border: 0px #cccccc solid;width: 100%;color:#333333;font-family:"����";font-size:12px;}

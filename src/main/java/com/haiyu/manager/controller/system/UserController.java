@@ -61,16 +61,11 @@ public class UserController {
 
         String userName = loginDTO.getUsername().trim();
         String password = loginDTO.getPassword().trim();
-        String rememberMe = loginDTO.getRememberMe();
         String host = request.getRemoteAddr();
 
         //获取token
         UsernamePasswordToken token = new UsernamePasswordToken(userName, password,host);
 
-        // 设置 remenmberMe 的功能
-        if (rememberMe != null && rememberMe.equals("on")) {
-            token.setRememberMe(true);
-        }
 
         try {
             subject.login(token);

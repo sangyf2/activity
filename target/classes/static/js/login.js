@@ -21,7 +21,6 @@ $(function(){
 function login(){
     var username=$("#username").val();
     var password=$("#password").val();
-    var rememberMe = $("#rememberMe").val();
     $.post("/user/login",$("#useLogin").serialize(),function(data){
         if(data.code == 1){
             window.location.href=data.url;
